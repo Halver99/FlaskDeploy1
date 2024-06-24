@@ -7,11 +7,10 @@ import re
 import nltk
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
-nltk.download('stopwords')
-nltk.download('punkt')
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 import swifter
-
+#nltk.download('stopwords')
+#nltk.download('punkt')
 import matplotlib.pyplot as plt
 from collections import Counter
 from flask import send_from_directory
