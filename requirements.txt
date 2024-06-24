@@ -12,5 +12,3 @@ nltk
 scikit-learn 
 wordcloud 
 regex
-punkt
-stopwords
