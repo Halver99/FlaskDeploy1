@@ -114,15 +114,8 @@
                                 <th>Klasifikasi Sistem</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            {% for index, row in df_test_subset.iterrows() %}
-                            <tr>
-                                <th scope="row">{{ index }}</th>
-                                <td>{{ row['teks'] }}</td>
-                                <td>{{ row['Hasil sebenarnya'] }}</td>
-                                <td>{{ row['Prediksi'] }}</td>
-                            </tr>
-                            {% endfor %}
+                        <tbody id="tableBody">
+                            <!-- Baris tabel akan ditambahkan di sini oleh JavaScript -->
                         </tbody>
                     </table>
                 </div>
@@ -151,13 +144,37 @@
     <script src="{{ url_for('static', filename='js/sb-admin-2.min.js') }}"></script>
 
     <!-- Page level plugins -->
-    <script
-        src="{{ url_for('static', filename='vendor/datatables/jquery.dataTables.min.js') }}"></script>
-    <script
-        src="{{ url_for('static', filename='vendor/datatables/dataTables.bootstrap4.min.js') }}"></script>
+    
 
     <!-- Page level custom scripts -->
-    <script src="{{ url_for('static', filename='js/demo/datatables-demo.js') }}"></script>
+   
+    <script>
+        $(document).ready(function() {
+            $('form').on('submit', function(event) {
+                event.preventDefault(); // Mencegah form dikirim seperti biasa
+
+                $.ajax({
+                    url: '/klasifikasi',
+                    type: 'POST',
+                    data: $(this).serialize(), // Mengambil data dari form
+                    success: function(response) {
+                        // Kosongkan tabel
+                        $('#dataTable tbody').empty();
+
+                        // Tambahkan baris baru ke tabel untuk setiap item dalam respons
+                        $.each(response, function(i, item) {
+                            $('<tr>').html(
+                                "<th scope='row'>" + (i +1 ) +  "</th>" +
+                                "<td>" + item.teks + "</td>" +
+                                "<td>" + item['Hasil sebenarnya'] + "</td>" +
+                                "<td>" + item.Prediksi + "</td>"
+                            ).appendTo('#dataTable tbody');
+                        });
+                    }
+                });
+            });
+        });
+    </script>
     <script>
     
     function checkStatus() {

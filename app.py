@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session, url_for
+from flask import Flask, render_template, request, redirect, session, url_for, jsonify
 import csv
 import os
 import pandas as pd
@@ -100,20 +100,16 @@ def hitung():
 
 @app.route('/klasifikasi', methods=['GET', 'POST'])
 def klasifikasi():
-    
-    if request.method == 'GET':
-
-        return render_template('klasifikasi.html', df_test_subset=pd.DataFrame())
-    
-    elif request.method == 'POST':
-        
+    if request.method == 'POST':
+        ulasan = preprocess_ulasan()
         accuracy, precision, recall, f1, tp, fn, fp, tn, df_test, df_test_subset = testing()
-       
         session['results'] = accuracy, precision.tolist(), recall.tolist(), f1.tolist(), tp.item(), fn.item(), fp.item(), tn.item()
 
-
+        
         # Mengembalikan hasil ke template HTML
-        return render_template('klasifikasi.html', df_test_subset = df_test_subset)
+        return jsonify(df_test_subset.to_dict(orient='records'))
+
+    return render_template('klasifikasi.html', df_test_subset=pd.DataFrame())
 
 
 
@@ -341,7 +337,8 @@ def testing():
     df_test['Hasil sebenarnya'] = df_test['Hasil sebenarnya'].replace({0: 'Negatif', 1: 'Positif'})
     df_test['Prediksi'] = df_test['Prediksi'].replace({0: 'Negatif', 1: 'Positif'})
 
-    df_test_subset = df_test [['teks' , 'Hasil sebenarnya', 'Prediksi']]
+    temp = df_test [['teks' , 'Hasil sebenarnya', 'Prediksi']]
+    df_test_subset = temp.head()
 
     # Simpan df_test ke dalam folder "uploads"
     app.config['UPLOAD_FOLDER'] = 'uploads'
