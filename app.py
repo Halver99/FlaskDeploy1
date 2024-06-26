@@ -65,6 +65,9 @@ def uploaddata():
             file.filename = "dataset.csv"
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
             file.save(filepath)
+
+            # Jalankan fungsi preprocess_ulasan() setelah file disimpan
+            preprocess_ulasan_part1()
             
             # Validate CSV columns
             text = pd.read_csv(filepath, encoding='latin-1')
@@ -99,10 +102,11 @@ def hitung():
 def klasifikasi():
     
     if request.method == 'GET':
+
         return render_template('klasifikasi.html', df_test_subset=pd.DataFrame())
     
     elif request.method == 'POST':
-        ulasan = preprocess_ulasan()
+        
         accuracy, precision, recall, f1, tp, fn, fp, tn, df_test, df_test_subset = testing()
        
         session['results'] = accuracy, precision.tolist(), recall.tolist(), f1.tolist(), tp.item(), fn.item(), fp.item(), tn.item()
@@ -122,6 +126,86 @@ def status():
     else : 
         return 'processing'
 
+def preprocess_ulasan_part1():
+    global ulasan
+    ulasan = pd.read_csv('uploads/dataset.csv', encoding='latin-1')
+    def cleaningulasan(ulasan):
+        ulasan = re.sub(r'@[A-Za-a0-9]+',' ',ulasan)
+        ulasan = re.sub(r'#[A-Za-z0-9]+',' ',ulasan)
+        ulasan = re.sub(r"http\S+",' ',ulasan)
+        ulasan = re.sub(r'[0-9]+',' ',ulasan)
+        ulasan = re.sub(r"[-()\"#/@;:<>{}'+=~|.!?,_]", " ", ulasan)
+        ulasan = ulasan.strip(' ')
+        return ulasan
+    ulasan['cleaning']= ulasan['content'].apply(cleaningulasan)
+
+    def clearEmoji(ulasan):
+        return ulasan.encode('ascii', 'ignore').decode('ascii')
+    ulasan['hapusEmoji']= ulasan['cleaning'].apply(clearEmoji)
+    def replaceTOM(ulasan):
+        pola = re.compile(r'(.)\1{2,}', re.DOTALL)
+        return pola.sub(r'\1', ulasan)
+    ulasan['replaceTOM']= ulasan['hapusEmoji'].apply(replaceTOM)
+    def casefoldingText(ulasan):
+        ulasan = ulasan.lower()
+        return ulasan
+    ulasan['caseFolding']= ulasan['replaceTOM'].apply(casefoldingText)
+    #TOKENIZING
+    def tokenizingText(ulasan):
+        ulasan = word_tokenize(ulasan)
+        return ulasan
+
+    ulasan['tokenizing']= ulasan['caseFolding'].apply(tokenizingText)
+    #formalisasi kata 
+
+    def convertToSlangword(ulasan):
+        kamusSlang = eval(open("uploads/slangwords.txt").read())
+        pattern = re.compile(r'\b( ' + '|'.join (kamusSlang.keys())+r')\b')
+        content = []
+        for kata in ulasan:
+            filterSlang = pattern.sub(lambda x: kamusSlang[x.group()],kata)
+            content.append(filterSlang.lower())
+        ulasan = content
+        return ulasan
+    ulasan['formalisasi'] = ulasan['tokenizing'].apply(convertToSlangword)
+    #stopword
+    daftar_stopword = stopwords.words('indonesian')
+    # ---------------------------- manualy add stopword  ------------------------------------
+    # append additional stopword
+    daftar_stopword.extend(["yg","dg","rt","nya","eh","yah","kan","ke","di", "ter"])
+    daftar_stopword = set(daftar_stopword)
+
+    def stopwordText(words):
+        
+        return [word for word in words if word not in daftar_stopword]
+
+    ulasan['stopwordRemoval'] = ulasan['formalisasi'].apply(stopwordText)
+    return ulasan
+
+def preprocess_ulasan_part2():
+    global ulasan
+    #stemming
+    factory = StemmerFactory()
+    stemmer = factory.create_stemmer()
+    def stemmed_wrapper(term):
+        return stemmer.stem(term)
+
+    term_dict = {}
+
+    for document in ulasan['stopwordRemoval']:
+        for term in document:
+            if term not in term_dict:
+                term_dict[term] = ' '
+
+    for term in term_dict:
+        term_dict[term] = stemmed_wrapper(term)
+        print(term,":" ,term_dict[term])
+
+    def stemmingText(document):
+        return [term_dict[term] for term in document]
+
+    ulasan['stemming'] = ulasan['stopwordRemoval'].swifter.apply(stemmingText)
+    return ulasan
 
 def preprocess_ulasan():
     global ulasan
@@ -173,7 +257,7 @@ def preprocess_ulasan():
     daftar_stopword = set(daftar_stopword)
 
     def stopwordText(words):
-        print(words)
+        
         return [word for word in words if word not in daftar_stopword]
 
     ulasan['stopwordRemoval'] = ulasan['formalisasi'].apply(stopwordText)
